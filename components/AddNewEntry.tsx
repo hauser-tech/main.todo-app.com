@@ -6,6 +6,7 @@ import { MdClose } from "react-icons/md";
 import { toast } from "react-toastify";
 import Input from "./Input";
 import { AddTask } from "@/actions/auth";
+import DateInput from "./DateInput";
 
 const AddNewEntry = (props: any) => {
   const { isOpen, setIsOpen, refetch } = props;
@@ -101,12 +102,12 @@ const AddNewEntry = (props: any) => {
                       control={control}
                       rules={{ required: "Task due date is Required." }}
                       render={({ field }) => (
-                        <Input
+                        <DateInput
                           field={{ ...field }}
                           label="Due Date"
                           placeholder="Enter Due Date"
                           errors={errors.dueDate}
-                          type="date"
+                          minDate={new Date().toISOString().split("T")[0]}
                           required={true}
                         />
                       )}
