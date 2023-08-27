@@ -1,113 +1,187 @@
-import Image from 'next/image'
+"use client";
+import { DeleteTask, GetTasks, UpdateTask } from "@/actions/auth";
+import AddNewEntry from "@/components/AddNewEntry";
+import Header from "@/components/Header";
+import Input from "@/components/Input";
+import Loader from "@/components/Loader";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import DataTable from "react-data-table-component";
+import { BsSearch } from "react-icons/bs";
+import { useDebounce } from "use-debounce";
+import moment from "moment";
+import { AiOutlineDelete, AiOutlineSave } from "react-icons/ai";
+import { toast } from "react-toastify";
+import { io } from "socket.io-client";
+import { useAppSelector } from "@/redux/store";
+
+let socket: any;
+const URL: any = process.env.NEXT_PUBLIC_BASE_URL;
 
 export default function Home() {
+  const [searchValue, setSearchValue] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [debouncedSearchValue] = useDebounce(searchValue, 1000);
+  const user = useAppSelector((state) => state.authReducer.value.user);
+
+  useEffect(() => {
+    socket = io(URL, {
+      path: "/api/socket",
+    });
+    socket.emit("new-user-add", user?._id);
+  }, [user?._id]);
+
+  useEffect(() => {
+    socket.on("recieve-message", (data: any) => {
+      toast.success(`Task ${data.taskName} is completed by ${data.email}`);
+    });
+  }, []);
+
+  const {
+    isLoading,
+    data: tasksList,
+    refetch: tasksListRefetch,
+  } = useQuery(
+    ["task-data", debouncedSearchValue],
+    () => GetTasks(debouncedSearchValue),
+    {
+      select: (res: any) => res.data,
+    }
+  );
+
+  const columns = [
+    {
+      name: "S No.",
+      selector: (row: any) => row.title,
+    },
+    {
+      name: "Name",
+      selector: (row: any) => row.name,
+    },
+    {
+      name: "Due Date",
+      selector: (row: any) => row.dueDate,
+    },
+    {
+      name: "Status",
+      selector: (row: any) => row.status,
+    },
+    {
+      name: "Actions",
+      selector: (row: any) => row.actions,
+    },
+  ];
+
+  const { mutate: deleteEntry } = useMutation(
+    (data: string) => DeleteTask(data),
+    {
+      onSuccess: (res: any) => {
+        toast.success(res.data.message);
+        tasksListRefetch();
+      },
+      onError: (err: any) => {
+        toast.error(err.response.data.error);
+      },
+    }
+  );
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this entry?")) {
+      deleteEntry(id);
+    }
+  };
+
+  const { mutate: updateEntry } = useMutation(
+    (data: string) => UpdateTask(data),
+    {
+      onSuccess: (res: any) => {
+        toast.success(res.data.message);
+        tasksListRefetch();
+        socket.emit("send-message", {
+          taskName: res.data.task.name,
+          email: user?.email.split("@")[0],
+        });
+      },
+      onError: (err: any) => {
+        toast.error(err.response.data.error);
+      },
+    }
+  );
+
+  const data = tasksList
+    ? tasksList.map((item: any, i: number) => {
+        return {
+          title: i + 1,
+          name: item.name,
+          dueDate: moment(item.dueDate).format("DD-MM-YYYY"),
+          status: (
+            <div
+              className={`py-1 px-2 no-underline rounded-full text-white font-sans font-semibold text-sm uppercase ${
+                item.status ? "bg-green-700" : "bg-pureRed"
+              }`}
+            >
+              {item.status ? "completed" : "pending"}
+            </div>
+          ),
+          actions: (
+            <div className="flex justify-between items-center space-x-3 cursor-pointer">
+              <AiOutlineSave
+                className={`text-primary ${
+                  moment(item.dueDate).isBefore(moment(), "day") || item.status
+                    ? "hidden"
+                    : "inline-block"
+                }`}
+                size={28}
+                onClick={() => updateEntry(item._id)}
+              />
+              <AiOutlineDelete
+                className="text-pureRed"
+                size={28}
+                onClick={() => handleDelete(item._id)}
+              />
+            </div>
+          ),
+        };
+      })
+    : [];
+
+  console.log("tasks list", tasksList);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <>
+      <Header />
+      <AddNewEntry
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+        refetch={tasksListRefetch}
+      />
+      <div>
+        <div className="mt-4 flex flex-col md:flex-row justify-between items-center w-11/12 mx-auto">
+          <div className="w-11/12 mx-auto md:mx-0 md:w-96">
+            <Input
+              value={searchValue}
+              setValue={setSearchValue}
+              placeholder="Search"
+              type="text"
+              icon={BsSearch}
             />
-          </a>
+          </div>
+          <button className="add-new-btn" onClick={() => setIsOpen(true)}>
+            Add New Entry
+          </button>
+        </div>
+        <div className="mt-4 w-11/12 mx-auto">
+          <DataTable
+            responsive
+            pagination
+            title="Todo's List"
+            progressPending={isLoading}
+            progressComponent={<Loader />}
+            columns={columns}
+            data={data}
+          />
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    </>
+  );
 }
