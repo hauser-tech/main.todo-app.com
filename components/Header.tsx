@@ -15,9 +15,9 @@ const Header = () => {
 
   const { mutate, isLoading } = useMutation(() => UserLogout(), {
     onSuccess: (res) => {
+      dispatch(logOut());
       router.replace("/login");
       toast.success("User Logged Out Successfully.");
-      dispatch(logOut());
     },
     onError: (err: any) => {
       toast.error(err.response.data.error || "something wrong happened.");
