@@ -24,7 +24,7 @@ const Login = () => {
     if (isAuth) {
       router.replace("/");
     }
-  }, []);
+  }, [isAuth, router]);
 
   const {
     control,

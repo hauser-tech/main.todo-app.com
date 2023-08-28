@@ -21,7 +21,7 @@ const Signup = () => {
     if (isAuth) {
       router.replace("/");
     }
-  }, []);
+  }, [isAuth, router]);
 
   const {
     control,
