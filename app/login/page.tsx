@@ -22,7 +22,7 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuth) {
-      router.replace("/");
+      router.push("/");
     }
   }, [isAuth, router]);
 
@@ -39,9 +39,9 @@ const Login = () => {
 
   const { mutate, isLoading } = useMutation((data) => UserLogin(data), {
     onSuccess: (res) => {
+      dispatch(logIn(res.data));
       router.push("/");
       toast.success("User Logged In Successfully.");
-      dispatch(logIn(res.data));
     },
     onError: (err: any) => {
       toast.error(err.response.data.error || "something wrong happened.");

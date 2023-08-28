@@ -19,7 +19,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (isAuth) {
-      router.replace("/");
+      router.push("/");
     }
   }, [isAuth, router]);
 
