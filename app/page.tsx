@@ -15,8 +15,8 @@ import { toast } from "react-toastify";
 import { io } from "socket.io-client";
 import { useAppSelector } from "@/redux/store";
 
-let socket: any;
-const URL: any = process.env.NEXT_PUBLIC_BASE_URL;
+// let socket: any;
+// const URL: any = process.env.NEXT_PUBLIC_BASE_URL;
 
 export default function Home() {
   const [searchValue, setSearchValue] = useState("");
@@ -24,18 +24,18 @@ export default function Home() {
   const [debouncedSearchValue] = useDebounce(searchValue, 1000);
   const user = useAppSelector((state) => state.authReducer.value.user);
 
-  useEffect(() => {
-    socket = io(URL, {
-      path: "/api/socket",
-    });
-    socket.emit("new-user-add", user?._id);
-  }, [user?._id]);
+  // useEffect(() => {
+  //   socket = io(URL, {
+  //     path: "/api/socket",
+  //   });
+  //   socket.emit("new-user-add", user?._id);
+  // }, [user?._id]);
 
-  useEffect(() => {
-    socket.on("recieve-message", (data: any) => {
-      toast.success(`Task ${data.taskName} is completed by ${data.email}`);
-    });
-  }, []);
+  // useEffect(() => {
+  //   socket.on("recieve-message", (data: any) => {
+  //     toast.success(`Task ${data.taskName} is completed by ${data.email}`);
+  //   });
+  // }, []);
 
   const {
     isLoading,
@@ -97,10 +97,10 @@ export default function Home() {
       onSuccess: (res: any) => {
         toast.success(res.data.message);
         tasksListRefetch();
-        socket.emit("send-message", {
-          taskName: res.data.task.name,
-          email: user?.email.split("@")[0],
-        });
+        // socket.emit("send-message", {
+        //   taskName: res.data.task.name,
+        //   email: user?.email.split("@")[0],
+        // });
       },
       onError: (err: any) => {
         toast.error(err.response.data.error);
@@ -145,7 +145,7 @@ export default function Home() {
       })
     : [];
 
-  console.log("tasks list", tasksList);
+  // console.log("tasks list", tasksList);
 
   return (
     <>
